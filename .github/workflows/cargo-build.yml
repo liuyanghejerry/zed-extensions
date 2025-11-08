@@ -1,0 +1,66 @@
+name: Cargo Build Check
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  cargo-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@11df97af8e8102fd60b60a77dfbf58d40cd843b8 # v1
+        with:
+          toolchain: stable
+
+      - name: Find and build Rust extensions
+        run: |
+          # Find all Cargo.toml files in extensions directory
+          CARGO_PROJECTS=$(find extensions -name "Cargo.toml" -type f)
+          
+          if [ -z "$CARGO_PROJECTS" ]; then
+            echo "No Cargo.toml files found in extensions"
+            exit 0
+          fi
+          
+          echo "Found Cargo projects:"
+          echo "$CARGO_PROJECTS"
+          echo ""
+          
+          # Track build results
+          FAILED_BUILDS=()
+          
+          # Build each project
+          for cargo_file in $CARGO_PROJECTS; do
+            project_dir=$(dirname "$cargo_file")
+            echo "Building project in: $project_dir"
+            
+            if (cd "$project_dir" && cargo build); then
+              echo "✓ Successfully built $project_dir"
+            else
+              echo "✗ Failed to build $project_dir"
+              FAILED_BUILDS+=("$project_dir")
+            fi
+            echo ""
+          done
+          
+          # Report results
+          if [ ${#FAILED_BUILDS[@]} -gt 0 ]; then
+            echo "Failed builds:"
+            printf '%s\n' "${FAILED_BUILDS[@]}"
+            exit 1
+          else
+            echo "All Cargo projects built successfully"
+          fi

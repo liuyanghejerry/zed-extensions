@@ -11,6 +11,9 @@ yarn.lock
 # Zed extension CLI.
 zed-extension
 
+# actionlint binary
+actionlint
+
 # Directories used by the Zed Extension CLI.
 /scratch
 /output
